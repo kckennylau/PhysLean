@@ -137,39 +137,65 @@ lemma PolynomialGrowth.bounded_norm {f : ℝ → 𝕜} (hfp : PolynomialGrowth �
   ⟨a, C, n, hf.mono fun x hfx ↦ hfx.trans <| (Real.le_norm_self _).trans <|
     (norm_add_le _ _).trans_eq <| by simp⟩
 
-instance PolynomialGrowth.hasTemperateGrowth (f : ℝ → ℝ≥0)
-    [hfp : Fact (PolynomialGrowth ℝ (toReal ∘ f))] :
-    (volume.withDensity (ENNReal.ofNNReal ∘ f)).HasTemperateGrowth :=
+lemma integrable_add_mul_pow_mul_rpow_neg_add_two (C a : ℝ) (n : ℕ) :
+    Integrable (fun x : ℝ ↦ (‖C‖ + ‖a‖ * ‖x‖ ^ n) * (1 + ‖x‖) ^ (-↑(n + 2) : ℝ)) :=
+  ((integrable_rpow_neg_one_add_norm_sq (r := 2) (by simp)).const_mul (‖C‖ + ‖a‖)).mono
+    (by fun_prop) <| .of_forall fun x ↦ calc
+  ‖(‖C‖ + ‖a‖ * ‖x‖ ^ n) * (1 + ‖x‖) ^ (-↑(n + 2) : ℝ)‖
+    = ‖C‖ * (1 + ‖x‖) ^ (-↑(n + 2) : ℤ) + ‖a‖ * (‖x‖ * (1 + ‖x‖)⁻¹) ^ n * (1 + ‖x‖) ^ (-2 : ℤ) :=
+      by rw [← Int.cast_natCast, ← Int.cast_neg, Real.rpow_intCast, Real.norm_eq_abs,
+        abs_eq_self.2 (by positivity), add_mul, add_right_inj, mul_pow, inv_pow,
+        ← zpow_natCast, ← zpow_natCast, ← zpow_neg, mul_assoc, mul_assoc, mul_assoc,
+        ← zpow_add₀ (by positivity), Nat.cast_add, neg_add, Nat.cast_two]
+  _ ≤ ‖C‖ * (1 + ‖x‖) ^ (-2 : ℤ) + ‖a‖ * 1 * (1 + ‖x‖) ^ (-2 : ℤ) :=
+      add_le_add (mul_le_mul_of_nonneg_left (zpow_le_zpow_right₀ (le_add_of_nonneg_right
+          (norm_nonneg x)) (by omega)) (norm_nonneg C))
+        (mul_le_mul_of_nonneg_right (mul_le_mul_of_nonneg_left
+          (pow_le_one₀ (by positivity) (mul_inv_le_one_of_le₀ (by linarith)
+            (by positivity))) (norm_nonneg a)) (by positivity))
+  _ = (‖C‖ + ‖a‖) * ((1 + ‖x‖) ^ 2)⁻¹ := by rw [add_mul, mul_one, zpow_neg, zpow_two, ← sq]
+  _ ≤ (‖C‖ + ‖a‖) * (1 + ‖x‖ ^ 2)⁻¹ :=
+      mul_le_mul_of_nonneg_left ((inv_le_inv₀ (by positivity) (by positivity)).2
+        (by rw [add_sq, one_pow, mul_one]; have := norm_nonneg x; linarith)) (by positivity)
+  _ = ‖(‖C‖ + ‖a‖) * (1 + ‖x‖ ^ 2) ^ (-2 / 2 : ℝ)‖ :=
+      by rw [neg_div_self two_ne_zero, Real.rpow_neg_one, Real.norm_eq_abs (_ * _),
+        abs_eq_self.2 (by positivity)]
+
+@[fun_prop] lemma _root_.MeasureTheory.AEStronglyMeasurable.posPart {α β : Type*}
+    {m₀ : MeasurableSpace α} {μ : MeasureTheory.Measure α}
+    [TopologicalSpace β] [Lattice β] [AddGroup β] [ContinuousSup β] [IsTopologicalAddGroup β]
+    {f : α → β} (hf : AEStronglyMeasurable f μ) :
+    AEStronglyMeasurable f⁺ μ :=
+  by convert hf.sup aestronglyMeasurable_zero using 1
+
+@[fun_prop] lemma continuous_one_add_abs_zpow (n : ℤ) : Continuous fun x : ℝ ↦ (1 + |x|) ^ n :=
+  Continuous.zpow₀ (by fun_prop) _ fun a ↦ Or.inl <| by positivity
+
+@[fun_prop] lemma continuous_one_add_abs_rpow (n : ℝ) : Continuous fun x : ℝ ↦ (1 + |x|) ^ n :=
+  Continuous.rpow (by fun_prop) (by fun_prop) fun a ↦ Or.inl <| by positivity
+
+instance PolynomialGrowth.hasTemperateGrowth (f : ℝ → ℝ)
+    [hfp : Fact (PolynomialGrowth ℝ f)] :
+    (volume.withDensity (ENNReal.ofReal ∘ f)).HasTemperateGrowth :=
   let ⟨a, C, n, hf⟩ := hfp.out.bounded_norm
-  sorry
+  ⟨n + 2, (integrable_withDensity_iff_integrable_smul₀'
+      (ENNReal.measurable_ofReal.comp_aemeasurable hfp.1.1.aemeasurable)
+      (.of_forall fun x ↦ ENNReal.ofReal_lt_top)).2 <|
+    (integrable_add_mul_pow_mul_rpow_neg_add_two C a n).mono
+      (by convert hfp.1.1.posPart.mul (continuous_one_add_abs_rpow _).aestronglyMeasurable using 2)
+      (hf.mono fun x hx ↦ by
+        rw [smul_eq_mul, norm_mul, norm_mul]
+        refine mul_le_mul_of_nonneg_right ?_ (by positivity)
+        rw [Real.norm_eq_abs, Real.norm_eq_abs,
+          abs_eq_self.2 (by positivity), abs_eq_self.2 (by positivity),
+          Function.comp_apply, ENNReal.toReal_ofReal']
+        exact max_le ((le_abs_self _).trans hx) (by positivity))⟩
 
-def PolynomialGrowth.ofNNReal (f : ℝ → ℝ≥0) [hfp : Fact (PolynomialGrowth ℝ (toReal ∘ f))] :
-    ℝ→d[ℝ] ℝ :=
-  SchwartzMap.integralCLM ℝ (.withDensity volume (ENNReal.ofNNReal ∘ f))
-
-variable {𝕜} in
-@[fun_prop]
-lemma PolynomialGrowth.integrable_mul_schwartz {f : ℝ → 𝕜} (hfp : PolynomialGrowth 𝕜 f)
-    (η : 𝓢(ℝ, 𝕜)) : Integrable (fun x ↦ f x * η x) :=
-  let ⟨a, C, n, hf⟩ := hfp.bounded_norm
-  have integrable1 : Integrable (fun x ↦ (‖C‖ + ‖a‖ * ‖x‖ ^ n) * ‖η x‖) := by
-    convert (η.integrable.norm.const_mul ‖C‖).add ((η.integrable_pow_mul volume n).const_mul ‖a‖)
-      using 2; simp [add_mul, mul_assoc]
-  integrable1.mono (by fun_prop) <| hf.mono fun x hx ↦ norm_mul (f x) (η x) ▸
-    (mul_le_mul_of_nonneg_right hx (norm_nonneg (η x))).trans (Real.le_norm_self _)
-
-/-- A measurable function `f` that is bounded by `C + |x|^n` can be made into a distribution. -/
-def ofPolynomialGrowth (f : ℝ → 𝕜) (hfp : PolynomialGrowth 𝕜 f) :
-    ℝ→d[𝕜] 𝕜 :=
-  ofLinear 𝕜 𝕜 { (0, 0) }
-    { toFun η := ∫ x, f x * η x
-      map_add' η₁ η₂ := by
-        simp_rw [add_apply, mul_add]
-        exact integral_add (by fun_prop) (by fun_prop)
-      map_smul' c η := by
-        simp_rw [smul_apply, smul_eq_mul, mul_left_comm (f _)]
-        exact integral_const_mul c (fun x ↦ f x * η x) } <| by
-    sorry
+/-- An auxiliary definition. Given function `f` with polynomial growth, we construct a distribution
+from the positive part, with `posPart f hf η = ∫ x, (max (f x) 0) * η x`. -/
+def posPart (f : ℝ → ℝ) (hfp : PolynomialGrowth ℝ f) : ℝ→d[ℝ] ℝ :=
+  have := Fact.mk hfp
+  integralCLM ℝ (.withDensity volume (ENNReal.ofReal ∘ f))
 
 end RCLike
 
