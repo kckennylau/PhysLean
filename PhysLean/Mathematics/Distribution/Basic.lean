@@ -28,7 +28,8 @@ required to output values in `ℝ` or `ℂ` respectively.
 
 -/
 
-open SchwartzMap NNReal
+open SchwartzMap NNReal MeasureTheory
+
 noncomputable section
 
 /-- A distribution on `E` (normed vector space over `𝕜`) is a continuous linear map
@@ -122,15 +123,52 @@ def derivative : (ℝ→d[𝕜] 𝕜) →ₗ[𝕜] (ℝ→d[𝕜] 𝕜) where
     f.derivative 𝕜 η = -f (SchwartzMap.derivCLM 𝕜 η) :=
   rfl
 
-open MeasureTheory in
+/-- Polynomial growth: a sufficient condition (assuming measurability) for a function to be made
+into a distribution. -/
+@[fun_prop] structure PolynomialGrowth (f : ℝ → 𝕜) : Prop where
+  (measurable : AEStronglyMeasurable f)
+  (bounded : ∃ (a C : ℝ) (n : ℕ), ∀ᵐ x : ℝ, ‖f x‖ ≤ C + a * ‖x‖ ^ n)
+
+attribute [fun_prop] PolynomialGrowth.measurable
+
+lemma PolynomialGrowth.bounded_norm {f : ℝ → 𝕜} (hfp : PolynomialGrowth 𝕜 f) :
+    ∃ (a C : ℝ) (n : ℕ), ∀ᵐ x : ℝ, ‖f x‖ ≤ ‖C‖ + ‖a‖ * ‖x‖ ^ n :=
+  let ⟨a, C, n, hf⟩ := hfp.bounded
+  ⟨a, C, n, hf.mono fun x hfx ↦ hfx.trans <| (Real.le_norm_self _).trans <|
+    (norm_add_le _ _).trans_eq <| by simp⟩
+
+instance PolynomialGrowth.hasTemperateGrowth (f : ℝ → ℝ≥0)
+    [hfp : Fact (PolynomialGrowth ℝ (toReal ∘ f))] :
+    (volume.withDensity (ENNReal.ofNNReal ∘ f)).HasTemperateGrowth :=
+  let ⟨a, C, n, hf⟩ := hfp.out.bounded_norm
+  sorry
+
+def PolynomialGrowth.ofNNReal (f : ℝ → ℝ≥0) [hfp : Fact (PolynomialGrowth ℝ (toReal ∘ f))] :
+    ℝ→d[ℝ] ℝ :=
+  SchwartzMap.integralCLM ℝ (.withDensity volume (ENNReal.ofNNReal ∘ f))
+
+variable {𝕜} in
+@[fun_prop]
+lemma PolynomialGrowth.integrable_mul_schwartz {f : ℝ → 𝕜} (hfp : PolynomialGrowth 𝕜 f)
+    (η : 𝓢(ℝ, 𝕜)) : Integrable (fun x ↦ f x * η x) :=
+  let ⟨a, C, n, hf⟩ := hfp.bounded_norm
+  have integrable1 : Integrable (fun x ↦ (‖C‖ + ‖a‖ * ‖x‖ ^ n) * ‖η x‖) := by
+    convert (η.integrable.norm.const_mul ‖C‖).add ((η.integrable_pow_mul volume n).const_mul ‖a‖)
+      using 2; simp [add_mul, mul_assoc]
+  integrable1.mono (by fun_prop) <| hf.mono fun x hx ↦ norm_mul (f x) (η x) ▸
+    (mul_le_mul_of_nonneg_right hx (norm_nonneg (η x))).trans (Real.le_norm_self _)
+
 /-- A measurable function `f` that is bounded by `C + |x|^n` can be made into a distribution. -/
-def ofPolynomialGrowth (f : ℝ → 𝕜) (hfm : AEStronglyMeasurable f)
-    (hfp : ∃ (a C : ℝ) (n : ℕ), (fun x ↦ ‖f x‖) ≤ᵐ[(volume)] (fun x ↦ C + a * ‖x‖^n)) :
+def ofPolynomialGrowth (f : ℝ → 𝕜) (hfp : PolynomialGrowth 𝕜 f) :
     ℝ→d[𝕜] 𝕜 :=
   ofLinear 𝕜 𝕜 { (0, 0) }
     { toFun η := ∫ x, f x * η x
-      map_add' η₁ η₂ := sorry
-      map_smul' c η := sorry }
+      map_add' η₁ η₂ := by
+        simp_rw [add_apply, mul_add]
+        exact integral_add (by fun_prop) (by fun_prop)
+      map_smul' c η := by
+        simp_rw [smul_apply, smul_eq_mul, mul_left_comm (f _)]
+        exact integral_const_mul c (fun x ↦ f x * η x) } <| by
     sorry
 
 end RCLike
