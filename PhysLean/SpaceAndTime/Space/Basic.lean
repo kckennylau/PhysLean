@@ -5,6 +5,7 @@ Authors: Joseph Tooby-Smith
 -/
 import Mathlib.Analysis.InnerProductSpace.PiL2
 import PhysLean.Meta.Informal.Basic
+import PhysLean.Meta.TODO.Basic
 import PhysLean.Meta.Linters.Sorry
 import Mathlib.Topology.ContinuousMap.CompactlySupported
 import Mathlib.Geometry.Manifold.IsManifold.Basic
@@ -12,25 +13,24 @@ import Mathlib.Geometry.Manifold.IsManifold.Basic
 
 # Space
 
-This file contains `d`-dimensional space.
+In this file, also called a module, we define the `d`-dimensional Euclidean space,
+and prove some proerties about it.
 
-## Note on implementation
-
-The definition of `Space d` currently inherits all instances of
-`EuclideanSpace ℝ (Fin d)`.
-
-This, in particular, automatically equips `Space d` with a
-norm. This norm induces a metric on `Space d` which is the standard
-Euclidean metric. Thus `Space d` automatically corresponds to
-flat space.
-
-The definition of `deriv` through `fderiv` explicitly uses this metric.
-
-`Space d` also inherits instances of `EuclideanSpace ℝ (Fin d)` such as
-a zero vector, the ability to add two space positions etc, which
-are not really allowed operations on `Space d`.
+PhysLean sits downstream of Mathlib, and above we import the necessary Mathlib modules
+which contain (perhaps transitively through imports) the definitions and theorems we need.
 
 -/
+
+/-!
+
+## The `Space` type
+
+-/
+
+TODO "HB6RR" "In the above documentation describe the notion of a type, and
+  introduce the type `Space d`."
+
+TODO "HB6VC" "Convert `Space` from an `abbrev` to a `def`."
 
 /-- The type `Space d` representes `d` dimensional Euclidean space.
   The default value of `d` is `3`. Thus `Space = Space 3`. -/
@@ -38,15 +38,49 @@ abbrev Space (d : ℕ := 3) := EuclideanSpace ℝ (Fin d)
 
 namespace Space
 
+/-!
+
+## Instances
+
+-/
+
+TODO "HB6YZ" "In the above documentation describe what an instance is, and why
+  it is useful to have instances for `Space d`."
+
+TODO "HB6WN" "After TODO 'HB6VC', give `Space d` the necessary instances
+  using `inferInstanceAs`."
+
+/-!
+
+## Basis
+
+-/
+
+TODO "HB6Z4" "In the above documentation describe the notion of a basis
+  in Lean."
+
 /-- The standard basis of Space based on `Fin d`. -/
-noncomputable def basis : OrthonormalBasis (Fin d) ℝ (Space d) :=
+noncomputable def basis {d} : OrthonormalBasis (Fin d) ℝ (Space d) :=
   EuclideanSpace.basisFun (Fin d) ℝ
 
-lemma basis_apply (i j : Fin d) :
+lemma basis_apply {d} (i j : Fin d) :
     basis i j = if i = j then 1 else 0 := by
   simp [basis, EuclideanSpace.basisFun_apply, Fin.isValue]
   congr 1
   exact Lean.Grind.eq_congr' rfl rfl
+
+@[simp]
+lemma basis_self {d} (i : Fin d) : basis i i = 1 := by
+  simp [basis_apply, if_pos rfl]
+
+@[simp]
+lemma basis_repr {d} (p : Space d) : basis.repr p = p := by rfl
+
+/-!
+
+## Coordinates
+
+-/
 
 /-- The standard coordinate functions of Space based on `Fin d`.
 
@@ -85,30 +119,44 @@ scoped notation "𝔁" => coord
 
 /-!
 
-## Calculus
+## Derivatives
 
 -/
 
+TODO "HB63O" "In the above documentation describe the different notions
+  of a derivative in Lean."
+
 /-- Given a function `f : Space d → M` the derivative of `f` in direction `μ`. -/
-noncomputable def deriv [AddCommGroup M] [Module ℝ M] [TopologicalSpace M]
+noncomputable def deriv {M d} [AddCommGroup M] [Module ℝ M] [TopologicalSpace M]
     (μ : Fin d) (f : Space d → M) : Space d → M :=
   (fun x => fderiv ℝ f x (EuclideanSpace.single μ (1:ℝ)))
+
+@[inherit_doc deriv]
+macro "∂[" i:term "]" : term => `(deriv $i)
 
 lemma deriv_eq [AddCommGroup M] [Module ℝ M] [TopologicalSpace M]
     (μ : Fin d) (f : Space d → M) (x : Space d) :
     deriv μ f x = fderiv ℝ f x (EuclideanSpace.single μ (1:ℝ)) := by
   rfl
 
-@[inherit_doc deriv]
-macro "∂[" i:term "]" : term => `(deriv $i)
+/-!
+
+## Gradient
+
+-/
 
 /-- The vector calculus operator `grad`. -/
-noncomputable def grad (f : Space d → ℝ) :
-  Space d → EuclideanSpace ℝ (Fin d) := fun x i =>
-    ∂[i] f x
+noncomputable def grad {d} (f : Space d → ℝ) :
+  Space d → EuclideanSpace ℝ (Fin d) := fun x i => ∂[i] f x
 
 @[inherit_doc grad]
 scoped[Space] notation "∇" => grad
+
+/-!
+
+## Curl
+
+-/
 
 /-- The vector calculus operator `curl`. -/
 noncomputable def curl (f : Space → EuclideanSpace ℝ (Fin 3)) :
@@ -127,8 +175,14 @@ noncomputable def curl (f : Space → EuclideanSpace ℝ (Fin 3)) :
 @[inherit_doc curl]
 macro (name := curlNotation) "∇" "×" f:term:100 : term => `(curl $f)
 
+/-!
+
+## Div
+
+-/
+
 /-- The vector calculus operator `div`. -/
-noncomputable def div (f : Space d → EuclideanSpace ℝ (Fin d)) :
+noncomputable def div {d} (f : Space d → EuclideanSpace ℝ (Fin d)) :
     Space d → ℝ := fun x =>
   -- get i-th component of `f`
   let fi i x := coord i (f x)
@@ -140,8 +194,14 @@ noncomputable def div (f : Space d → EuclideanSpace ℝ (Fin d)) :
 @[inherit_doc div]
 macro (name := divNotation) "∇" "⬝" f:term:100 : term => `(div $f)
 
+/-!
+
+## Laplacians
+
+-/
+
 /-- The scalar `laplacian` operator. -/
-noncomputable def laplacian (f : Space d → ℝ) :
+noncomputable def laplacian {d} (f : Space d → ℝ) :
     Space d → ℝ := fun x =>
   -- second derivative of f in i-th coordinate
   -- ∂²f/∂xᵢ²
@@ -151,15 +211,21 @@ noncomputable def laplacian (f : Space d → ℝ) :
 @[inherit_doc laplacian]
 scoped[Space] notation "Δ" => laplacian
 
-/-- The vector `laplacian_vec` operator. -/
-noncomputable def laplacian_vec (f : Space d → EuclideanSpace ℝ (Fin d)) :
+/-- The vector `laplacianVec` operator. -/
+noncomputable def laplacianVec {d} (f : Space d → EuclideanSpace ℝ (Fin d)) :
     Space d → EuclideanSpace ℝ (Fin d) := fun x i =>
   -- get i-th component of `f`
   let fi i x := coord i (f x)
   Δ (fi i) x
 
-@[inherit_doc laplacian_vec]
-scoped[Space] notation "Δ" => laplacian_vec
+@[inherit_doc laplacianVec]
+scoped[Space] notation "Δ" => laplacianVec
+
+/-!
+
+## Directions
+
+-/
 
 /-- Notion of direction where `unit` returns a unit vector in the direction specified. -/
 structure Direction (d : ℕ := 3) where

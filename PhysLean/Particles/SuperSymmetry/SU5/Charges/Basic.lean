@@ -12,6 +12,9 @@ import PhysLean.Particles.SuperSymmetry.SU5.Potential
 # Charges
 
 The data structure associated with additional charges in the SU(5) GUT model.
+
+These charges are permitted to sit within any type `𝓩` which is usually taken
+to be `ℤ` (for `U(1)` charges) or multiples thereof.
 -/
 
 namespace SuperSymmetry
@@ -23,15 +26,39 @@ namespace SU5
   The order of charges is implicitly taken to be `qHd`, `qHu`, `Q5`, `Q10`.
 
   The `Q5` and `Q10` charges are represented by `Finset` rather than
-  `Multiset`, so multiplicity is not included. -/
-def Charges : Type := Option ℤ × Option ℤ × Finset ℤ × Finset ℤ
+  `Multiset`, so multiplicity is not included.
+
+  This is defined for a general type `𝓩`, which could be e.g.
+- `ℤ` in the case of `U(1)`,
+- `ℤ × ℤ` in the case of `U(1) × U(1)`,
+- `Fin 2` in the case of `ℤ₂` etc.
+-/
+def Charges (𝓩 : Type := ℤ) : Type := Option 𝓩 × Option 𝓩 × Finset 𝓩 × Finset 𝓩
 
 namespace Charges
 
-instance : DecidableEq Charges := inferInstanceAs
-  (DecidableEq (Option ℤ × Option ℤ × Finset ℤ × Finset ℤ))
+variable {𝓩 : Type}
 
-unsafe instance : Repr Charges where
+/-- The explicit casting of a term of type `Charges 𝓩` to a term of
+  `Option 𝓩 × Option 𝓩 × Finset 𝓩 × Finset 𝓩`. -/
+def toProd (x : Charges 𝓩) : Option 𝓩 × Option 𝓩 × Finset 𝓩 × Finset 𝓩 := x
+
+lemma eq_of_parts {x y : Charges 𝓩} (h1 : x.1 = y.1) (h2 : x.2.1 = y.2.1)
+    (h3 : x.2.2.1 = y.2.2.1) (h4 : x.2.2.2 = y.2.2.2) : x = y := by
+  match x, y with
+  | (x1, x2, x3, x4), (y1, y2, y3, y4) =>
+    simp_all
+
+/-!
+
+## Basic instances on the type `Charges 𝓩`.
+
+-/
+
+instance [DecidableEq 𝓩] : DecidableEq (Charges 𝓩) := inferInstanceAs
+  (DecidableEq (Option 𝓩 × Option 𝓩 × Finset 𝓩 × Finset 𝓩))
+
+unsafe instance [Repr 𝓩] : Repr (Charges 𝓩) where
   reprPrec x _ := match x with
     | (qHd, qHu, Q5, Q10) =>
       let s1 := reprStr qHd
@@ -40,39 +67,29 @@ unsafe instance : Repr Charges where
       let s10 := reprStr Q10
       s!"({s1}, {s2}, {s5}, {s10})"
 
-/-- The explicit casting of a term of `Charges` to a term of
-  `Option ℤ × Option ℤ × Finset ℤ × Finset ℤ`. -/
-def toProd (x : Charges) : Option ℤ × Option ℤ × Finset ℤ × Finset ℤ := x
-
-lemma eq_of_parts {x y : Charges} (h1 : x.1 = y.1) (h2 : x.2.1 = y.2.1)
-    (h3 : x.2.2.1 = y.2.2.1) (h4 : x.2.2.2 = y.2.2.2) : x = y := by
-  match x, y with
-  | (x1, x2, x3, x4), (y1, y2, y3, y4) =>
-    simp_all
-
 /-!
 
 ## Subsest relation
 
 -/
 
-instance hasSubset : HasSubset Charges where
+instance hasSubset : HasSubset (Charges 𝓩) where
   Subset x y := x.1.toFinset ⊆ y.1.toFinset ∧
     x.2.1.toFinset ⊆ y.2.1.toFinset ∧
     x.2.2.1 ⊆ y.2.2.1 ∧
     x.2.2.2 ⊆ y.2.2.2
 
-instance hasSSubset : HasSSubset Charges where
+instance hasSSubset : HasSSubset (Charges 𝓩) where
   SSubset x y := x ⊆ y ∧ x ≠ y
 
-instance subsetDecidable (x y : Charges) : Decidable (x ⊆ y) := instDecidableAnd
+instance subsetDecidable [DecidableEq 𝓩] (x y : Charges 𝓩) : Decidable (x ⊆ y) := instDecidableAnd
 
-lemma subset_def {x y : Charges} : x ⊆ y ↔ x.1.toFinset ⊆ y.1.toFinset ∧
+lemma subset_def {x y : Charges 𝓩} : x ⊆ y ↔ x.1.toFinset ⊆ y.1.toFinset ∧
     x.2.1.toFinset ⊆ y.2.1.toFinset ∧ x.2.2.1 ⊆ y.2.2.1 ∧ x.2.2.2 ⊆ y.2.2.2 := by
   rfl
 
 @[simp, refl]
-lemma subset_refl (x : Charges) : x ⊆ x := by
+lemma subset_refl (x : Charges 𝓩) : x ⊆ x := by
   constructor
   · rfl
   · constructor
@@ -81,7 +98,7 @@ lemma subset_refl (x : Charges) : x ⊆ x := by
       · rfl
       · rfl
 
-lemma _root_.Option.toFinset_inj {x y : Option ℤ} :
+lemma _root_.Option.toFinset_inj {x y : Option 𝓩} :
     x = y ↔ x.toFinset = y.toFinset := by
   match x, y with
   | none, none => simp [Option.toFinset]
@@ -93,10 +110,10 @@ lemma _root_.Option.toFinset_inj {x y : Option ℤ} :
   | some _, none => simp [Option.toFinset]
   | some _, some _ => simp [Option.toFinset]
 
-lemma subset_trans {x y z : Charges} (hxy : x ⊆ y) (hyz : y ⊆ z) : x ⊆ z := by
+lemma subset_trans {x y z : Charges 𝓩} (hxy : x ⊆ y) (hyz : y ⊆ z) : x ⊆ z := by
   simp_all [Subset]
 
-lemma subset_antisymm {x y : Charges} (hxy : x ⊆ y) (hyx : y ⊆ x) : x = y := by
+lemma subset_antisymm {x y : Charges 𝓩} (hxy : x ⊆ y) (hyx : y ⊆ x) : x = y := by
   rw [Subset] at hxy hyx
   dsimp [hasSubset] at hxy hyx
   rcases x with ⟨x1, x2, x3, x4⟩
@@ -114,15 +131,15 @@ lemma subset_antisymm {x y : Charges} (hxy : x ⊆ y) (hyx : y ⊆ x) : x = y :=
 
 -/
 
-instance emptyInst : EmptyCollection Charges where
+instance emptyInst : EmptyCollection (Charges 𝓩) where
   emptyCollection := (none, none, {}, {})
 
 @[simp]
-lemma empty_subset (x : Charges) : ∅ ⊆ x := by
+lemma empty_subset (x : Charges 𝓩) : ∅ ⊆ x := by
   simp [hasSubset, Subset, emptyInst]
 
 @[simp]
-lemma subset_of_empty_iff_empty {x : Charges} :
+lemma subset_of_empty_iff_empty {x : Charges 𝓩} :
     x ⊆ ∅ ↔ x = ∅ := by
   constructor
   · intro h
@@ -134,19 +151,19 @@ lemma subset_of_empty_iff_empty {x : Charges} :
     simp
 
 @[simp]
-lemma empty_qHd : (∅ : Charges).1 = none := by
+lemma empty_qHd : (∅ : Charges 𝓩).1 = none := by
   simp [emptyInst]
 
 @[simp]
-lemma empty_qHu : (∅ : Charges).2.1 = none := by
+lemma empty_qHu : (∅ : Charges 𝓩).2.1 = none := by
   simp [emptyInst]
 
 @[simp]
-lemma empty_Q5 : (∅ : Charges).2.2.1 = ∅ := by
+lemma empty_Q5 : (∅ : Charges 𝓩).2.2.1 = ∅ := by
   simp [emptyInst]
 
 @[simp]
-lemma empty_Q10 : (∅ : Charges).2.2.2 = ∅ := by
+lemma empty_Q10 : (∅ : Charges 𝓩).2.2.2 = ∅ := by
   simp [emptyInst]
 
 /-!
@@ -157,14 +174,14 @@ lemma empty_Q10 : (∅ : Charges).2.2.2 = ∅ := by
 
 /-- The cardinality of a `Charges` is defined to be the sum of the cardinalities
   of each of the underlying finite sets of charges, with `Option ℤ` turned to finsets. -/
-def card (x : Charges) : Nat :=
+def card (x : Charges 𝓩) : Nat :=
   x.1.toFinset.card + x.2.1.toFinset.card + x.2.2.1.card + x.2.2.2.card
 
 @[simp]
-lemma card_empty : card (∅ : Charges) = 0 := by
+lemma card_empty : card (∅ : Charges 𝓩) = 0 := by
   simp [card, emptyInst]
 
-lemma card_mono {x y : Charges} (h : x ⊆ y) : card x ≤ card y := by
+lemma card_mono {x y : Charges 𝓩} (h : x ⊆ y) : card x ≤ card y := by
   simp [card, hasSubset] at h
   have h1 := Finset.card_le_card h.1
   have h2 := Finset.card_le_card h.2.1
@@ -173,7 +190,7 @@ lemma card_mono {x y : Charges} (h : x ⊆ y) : card x ≤ card y := by
   simp [card]
   omega
 
-lemma eq_of_subset_card {x y : Charges} (h : x ⊆ y) (hcard : card x = card y) : x = y := by
+lemma eq_of_subset_card {x y : Charges 𝓩} (h : x ⊆ y) (hcard : card x = card y) : x = y := by
   simp [card] at hcard
   have h1 := Finset.card_le_card h.1
   have h2 := Finset.card_le_card h.2.1
@@ -202,15 +219,17 @@ lemma eq_of_subset_card {x y : Charges} (h : x ⊆ y) (hcard : card x = card y) 
 
 -/
 
-/-- The powerset of `x : Option ℤ` defined as `{none}` if `x` is `none`
+variable [DecidableEq 𝓩]
+
+/-- The powerset of `x : Option 𝓩` defined as `{none}` if `x` is `none`
   and `{none, some y}` is `x` is `some y`. -/
-def _root_.Option.powerset (x : Option ℤ) : Finset (Option ℤ) :=
+def _root_.Option.powerset (x : Option 𝓩) : Finset (Option 𝓩) :=
   match x with
   | none => {none}
   | some x => {none, some x}
 
 @[simp]
-lemma _root_.Option.mem_powerset_iff {x : Option ℤ} (y : Option ℤ) :
+lemma _root_.Option.mem_powerset_iff {x : Option 𝓩} (y : Option 𝓩) :
     y ∈ x.powerset ↔ y.toFinset ⊆ x.toFinset :=
   match x, y with
   | none, none => by
@@ -224,11 +243,11 @@ lemma _root_.Option.mem_powerset_iff {x : Option ℤ} (y : Option ℤ) :
 
 /-- The powerset of a charge . Given a charge `x : Charges`
   it's powerset is the finite set of all `Charges` which are subsets of `x`. -/
-def powerset (x : Charges) : Finset Charges :=
+def powerset (x : Charges 𝓩) : Finset (Charges 𝓩) :=
   x.1.powerset.product <| x.2.1.powerset.product <| x.2.2.1.powerset.product <| x.2.2.2.powerset
 
 @[simp]
-lemma mem_powerset_iff_subset {x y : Charges} :
+lemma mem_powerset_iff_subset {x y : Charges 𝓩} :
     x ∈ powerset y ↔ x ⊆ y := by
   cases x
   cases y
@@ -236,19 +255,19 @@ lemma mem_powerset_iff_subset {x y : Charges} :
   rw [Finset.mem_product]
   simp_all [Subset]
 
-lemma self_mem_powerset (x : Charges) :
+lemma self_mem_powerset (x : Charges 𝓩) :
     x ∈ powerset x := by simp
 
-lemma empty_mem_powerset (x : Charges) :
+lemma empty_mem_powerset (x : Charges 𝓩) :
     ∅ ∈ powerset x := by simp
 
 @[simp]
 lemma powerset_of_empty :
-    powerset ∅ = {∅} := by
+    powerset (∅ : Charges 𝓩) = {∅} := by
   ext x
   simp
 
-lemma powerset_mono {x y : Charges} :
+lemma powerset_mono {x y : Charges 𝓩} :
     powerset x ⊆ powerset y ↔ x ⊆ y := by
   constructor
   · intro h
@@ -260,7 +279,7 @@ lemma powerset_mono {x y : Charges} :
     intro h1
     exact subset_trans h1 h
 
-lemma min_exists_inductive (S : Finset Charges) (hS : S ≠ ∅) :
+lemma min_exists_inductive (S : Finset (Charges 𝓩)) (hS : S ≠ ∅) :
     (n : ℕ) → (hn : S.card = n) →
     ∃ y ∈ S, powerset y ∩ S = {y}
   | 0, h => by simp_all
@@ -325,7 +344,7 @@ lemma min_exists_inductive (S : Finset Charges) (hS : S ≠ ∅) :
         subst hzy
         simp_all
 
-lemma min_exists (S : Finset Charges) (hS : S ≠ ∅) :
+lemma min_exists (S : Finset (Charges 𝓩)) (hS : S ≠ ∅) :
     ∃ y ∈ S, powerset y ∩ S = {y} := min_exists_inductive S hS S.card rfl
 
 /-!
@@ -334,25 +353,19 @@ lemma min_exists (S : Finset Charges) (hS : S ≠ ∅) :
 
 -/
 
-/-- Given `S5 S10 : Finset ℤ` the finite set of charges associated with
+/-- Given `S5 S10 : Finset 𝓩` the finite set of charges associated with
   for which the 5-bar representation charges sit in `S5` and
   the 10d representation charges sit in `S10`. -/
-def ofFinset (S5 S10 : Finset ℤ) : Finset Charges :=
-  let SqHd := {none} ∪ S5.map ⟨Option.some, Option.some_injective ℤ⟩
-  let SqHu := {none} ∪ S5.map ⟨Option.some, Option.some_injective ℤ⟩
+def ofFinset (S5 S10 : Finset 𝓩) : Finset (Charges 𝓩) :=
+  let SqHd := {none} ∪ S5.map ⟨Option.some, Option.some_injective 𝓩⟩
+  let SqHu := {none} ∪ S5.map ⟨Option.some, Option.some_injective 𝓩⟩
   let SQ5 := S5.powerset
   let SQ10 := S10.powerset
   SqHd.product (SqHu.product (SQ5.product SQ10))
 
-lemma qHd_mem_ofFinset (S5 S10 : Finset ℤ) (z : ℤ) (x2 : Option ℤ × Finset ℤ × Finset ℤ)
+lemma qHd_mem_ofFinset (S5 S10 : Finset 𝓩) (z : 𝓩) (x2 : Option 𝓩 × Finset 𝓩 × Finset 𝓩)
     (hsub : (some z, x2) ∈ ofFinset S5 S10) :
     z ∈ S5 := by
-  have hoption (x : Option ℤ) (S : Finset ℤ) :
-      x ∈ ({none} : Finset (Option ℤ)) ∪ S.map ⟨Option.some, Option.some_injective ℤ⟩ ↔
-      x.toFinset ⊆ S := by
-    match x with
-    | none => simp
-    | some x => simp
   rw [ofFinset] at hsub
   cases x2
   repeat rw [Finset.product_eq_sprod, Finset.mem_product] at hsub
@@ -360,15 +373,9 @@ lemma qHd_mem_ofFinset (S5 S10 : Finset ℤ) (z : ℤ) (x2 : Option ℤ × Finse
   simp only [Finset.mem_powerset] at hsub
   simp_all
 
-lemma qHu_mem_ofFinset (S5 S10 : Finset ℤ) (z : ℤ) (x1 : Option ℤ) (x2 : Finset ℤ × Finset ℤ)
+lemma qHu_mem_ofFinset (S5 S10 : Finset 𝓩) (z : 𝓩) (x1 : Option 𝓩) (x2 : Finset 𝓩 × Finset 𝓩)
     (hsub : (x1, some z, x2) ∈ ofFinset S5 S10) :
     z ∈ S5 := by
-  have hoption (x : Option ℤ) (S : Finset ℤ) :
-      x ∈ ({none} : Finset (Option ℤ)) ∪ S.map ⟨Option.some, Option.some_injective ℤ⟩ ↔
-      x.toFinset ⊆ S := by
-    match x with
-    | none => simp
-    | some x => simp
   rw [ofFinset] at hsub
   cases x2
   repeat rw [Finset.product_eq_sprod, Finset.mem_product] at hsub
@@ -376,8 +383,8 @@ lemma qHu_mem_ofFinset (S5 S10 : Finset ℤ) (z : ℤ) (x1 : Option ℤ) (x2 : F
   simp only [Finset.mem_powerset] at hsub
   simp_all
 
-lemma mem_ofFinset_Q5_subset (S5 S10 : Finset ℤ)
-    {x : Charges} (hx : x ∈ ofFinset S5 S10) :
+lemma mem_ofFinset_Q5_subset (S5 S10 : Finset 𝓩)
+    {x : Charges 𝓩} (hx : x ∈ ofFinset S5 S10) :
     x.2.2.1 ⊆ S5 := by
   rw [ofFinset] at hx
   cases x
@@ -386,8 +393,8 @@ lemma mem_ofFinset_Q5_subset (S5 S10 : Finset ℤ)
   simp only [Finset.mem_powerset] at hx
   exact hx.2.2.1
 
-lemma mem_ofFinset_Q10_subset (S5 S10 : Finset ℤ)
-    {x : Charges} (hx : x ∈ ofFinset S5 S10) :
+lemma mem_ofFinset_Q10_subset (S5 S10 : Finset 𝓩)
+    {x : Charges 𝓩} (hx : x ∈ ofFinset S5 S10) :
     x.2.2.2 ⊆ S10 := by
   rw [ofFinset] at hx
   cases x
@@ -396,11 +403,11 @@ lemma mem_ofFinset_Q10_subset (S5 S10 : Finset ℤ)
   simp only [Finset.mem_powerset] at hx
   exact hx.2.2.2
 
-lemma mem_ofFinset_antitone (S5 S10 : Finset ℤ)
-    {x y : Charges} (h : x ⊆ y) (hy : y ∈ ofFinset S5 S10) :
+lemma mem_ofFinset_antitone (S5 S10 : Finset 𝓩)
+    {x y : Charges 𝓩} (h : x ⊆ y) (hy : y ∈ ofFinset S5 S10) :
     x ∈ ofFinset S5 S10 := by
-  have hoption (x : Option ℤ) (S : Finset ℤ) :
-      x ∈ ({none} : Finset (Option ℤ)) ∪ S.map ⟨Option.some, Option.some_injective ℤ⟩ ↔
+  have hoption (x : Option 𝓩) (S : Finset 𝓩) :
+      x ∈ ({none} : Finset (Option 𝓩)) ∪ S.map ⟨Option.some, Option.some_injective 𝓩⟩ ↔
       x.toFinset ⊆ S := by
     match x with
     | none => simp
@@ -416,13 +423,13 @@ lemma mem_ofFinset_antitone (S5 S10 : Finset ℤ)
   simp only [hoption, Finset.mem_powerset] at hy ⊢
   exact ⟨h.1.trans hy.1, h.2.1.trans hy.2.1, h.2.2.1.trans hy.2.2.1, h.2.2.2.trans hy.2.2.2⟩
 
-lemma mem_ofFinset_iff {S5 S10 : Finset ℤ} {x : Charges} :
+lemma mem_ofFinset_iff {S5 S10 : Finset 𝓩} {x : Charges 𝓩} :
     x ∈ ofFinset S5 S10 ↔ x.1.toFinset ⊆ S5 ∧ x.2.1.toFinset ⊆ S5 ∧
       x.2.2.1 ⊆ S5 ∧ x.2.2.2 ⊆ S10 := by
   match x with
   | (qHd, qHu, Q5, Q10) =>
-  have hoption (x : Option ℤ) (S : Finset ℤ) :
-      x ∈ ({none} : Finset (Option ℤ)) ∪ S.map ⟨Option.some, Option.some_injective ℤ⟩ ↔
+  have hoption (x : Option 𝓩) (S : Finset 𝓩) :
+      x ∈ ({none} : Finset (Option 𝓩)) ∪ S.map ⟨Option.some, Option.some_injective 𝓩⟩ ↔
       x.toFinset ⊆ S := by
     match x with
     | none => simp
@@ -432,7 +439,7 @@ lemma mem_ofFinset_iff {S5 S10 : Finset ℤ} {x : Charges} :
   rw [hoption, hoption]
   simp
 
-lemma ofFinset_subset_of_subset {S5 S5' S10 S10' : Finset ℤ}
+lemma ofFinset_subset_of_subset {S5 S5' S10 S10' : Finset 𝓩}
     (h5 : S5 ⊆ S5') (h10 : S10 ⊆ S10') :
     ofFinset S5 S10 ⊆ ofFinset S5' S10' := by
   intro x hx
